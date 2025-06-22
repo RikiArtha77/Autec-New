@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('device_id')->unique(); // id_alat dari ESP32
             $table->string('device_name')->nullable(); // opsional
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // petani
+            $table->string('username')->unique();
+            $table->string('password');
             $table->timestamps();
         });
     }

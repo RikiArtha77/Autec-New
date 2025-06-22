@@ -1,19 +1,20 @@
 <?php
 
-namespace App\Http\Controllers; // Sesuaikan namespace jika Anda memindahkannya ke App\Http\Controllers\Api
+namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\SensorData;
-use Illuminate\Support\Facades\Validator; // Tambahkan ini untuk validasi
+use App\Models\Device;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 
-class SensorDataController extends Controller // Pastikan extends Controller
+class SensorDataController extends Controller
 {
     public function store(Request $request)
     {
-        // Validasi input data yang diterima
+        // Validasi input
         $validator = Validator::make($request->all(), [
-            'id_alat' => 'required|string|max:255',
+            'id_alat' => 'required|string|exists:devices,device_id',
             'temp' => 'required|numeric',
             'humidity' => 'required|numeric',
             'soil_moisture' => 'required|numeric',
@@ -25,58 +26,73 @@ class SensorDataController extends Controller // Pastikan extends Controller
                 'success' => false,
                 'message' => 'Validasi gagal.',
                 'errors' => $validator->errors()
-            ], 422); // Unprocessable Entity
+            ], 422);
         }
 
-        $validatedData = $validator->validated();
-
         try {
-            // Menggunakan updateOrCreate:
-            // Argumen pertama: kondisi untuk mencari data (berdasarkan id_alat)
-            // Argumen kedua: data yang akan di-update atau dibuat jika tidak ditemukan
-            $sensorData = SensorData::updateOrCreate(
-                ['id_alat' => $validatedData['id_alat']], // Kunci untuk mencari
-                [ // Data untuk di-update atau dibuat
-                    'temp' => $validatedData['temp'],
-                    'humidity' => $validatedData['humidity'],
-                    'soil_moisture' => $validatedData['soil_moisture'],
-                    'ldr' => $validatedData['ldr'],
-                ]
-            );
+            $data = $validator->validated();
 
-            // Cek apakah data baru dibuat atau diupdate untuk pesan respons
-            if ($sensorData->wasRecentlyCreated) {
-                $message = 'Data sensor baru berhasil disimpan.';
-                $statusCode = 201; // Created
-            } else {
-                $message = 'Data sensor berhasil diperbarui.';
-                $statusCode = 200; // OK
-            }
+            $sensorData = SensorData::create([
+                'id_alat' => $data['id_alat'],
+                'temp' => $data['temp'],
+                'humidity' => $data['humidity'],
+                'soil_moisture' => $data['soil_moisture'],
+                'ldr' => $data['ldr'],
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => $message,
+                'message' => 'Data sensor berhasil disimpan.',
                 'data' => $sensorData
-            ], $statusCode);
+            ], 201);
 
         } catch (\Exception $e) {
-            Log::error('Gagal menyimpan atau memperbarui data sensor: ' . $e->getMessage());
+            Log::error('Gagal menyimpan data sensor: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan pada server saat memproses data sensor.',
-                // 'error_detail' => $e->getMessage() // Sebaiknya jangan tampilkan detail error di produksi
-            ], 500); // Internal Server Error
+                'message' => 'Gagal menyimpan data sensor.',
+            ], 500);
         }
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $sensorData = SensorData::orderBy('created_at', 'desc')->get();
-        
+        $query = SensorData::orderBy('created_at', 'desc');
+
+        // Opsional: filter berdasarkan ID alat
+        if ($request->has('device_id')) {
+            $query->where('id_alat', $request->device_id);
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Daftar semua data sensor berhasil diambil.',
-            'data' => $sensorData
-        ], 200);
+            'message' => 'Data sensor berhasil diambil.',
+            'data' => $query->get()
+        ]);
+    }
+    public function latest($device_id)
+    {
+        $device = Device::where('device_id', $device_id)->firstOrFail();
+        $data = SensorData::where('id_alat', $device->device_id)->latest()->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ]);
+    }
+
+    public function history(Request $request, $device_id)
+    {
+        $device = Device::where('device_id', $device_id)->firstOrFail();
+        $query = SensorData::where('id_alat', $device->device_id)->orderBy('created_at', 'desc');
+
+        if ($request->has('from') && $request->has('to')) {
+            $query->whereBetween('created_at', [$request->from, $request->to]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $query->get(),
+        ]);
     }
 }
