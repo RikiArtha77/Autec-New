@@ -16,7 +16,6 @@ export default function SensorDataPage() {
     const [devices, setDevices] = useState([]);
     const token = localStorage.getItem("token");
 
-    // Ambil daftar device user login
     useEffect(() => {
         fetch("http://localhost:8000/api/devices", {
             headers: { Authorization: `Bearer ${token}` },
@@ -25,7 +24,6 @@ export default function SensorDataPage() {
             .then((json) => setDevices(json.devices || []));
     }, []);
 
-    // Ambil data sensor (real-time atau history)
     useEffect(() => {
         if (!deviceId) return;
 
@@ -34,7 +32,7 @@ export default function SensorDataPage() {
                 const url =
                     mode === "live"
                         ? `/api/sensors/${deviceId}/latest`
-                        : `/api/sensors/${deviceId}/history?from=2025-06-01&to=2025-06-30`;
+                        : `/api/sensors/${deviceId}/history?`;
 
                 const response = await fetch(`http://localhost:8000${url}`);
                 const res = await response.json();
@@ -42,7 +40,9 @@ export default function SensorDataPage() {
                 if (mode === "live") {
                     setData(res.data ? [res.data] : []);
                 } else {
-                    setData(Array.isArray(res.data) ? res.data : []);
+                    const allData = Array.isArray(res.data) ? res.data : [];
+                    const latestTen = allData.slice(0, 10);
+                    setData(latestTen);
                 }
             } catch (err) {
                 console.error("Fetch error:", err);
@@ -108,7 +108,7 @@ export default function SensorDataPage() {
                                 dataKey="created_at"
                                 tick={{ fontSize: 10 }}
                             />
-                            <YAxis />
+                            <YAxis domain={[0, 100]} />
                             <Tooltip />
                             <Line
                                 type="monotone"
@@ -121,6 +121,18 @@ export default function SensorDataPage() {
                                 dataKey="temp"
                                 stroke="#82ca9d"
                                 name="Temperature"
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="soil_moisture"
+                                stroke="#f59e0b"
+                                name="Soil Moisture"
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="ldr"
+                                stroke="#f43f5e"
+                                name="Light"
                             />
                         </LineChart>
                     </ResponsiveContainer>
@@ -146,8 +158,8 @@ export default function SensorDataPage() {
                                 </td>
                                 <td className="p-2">{d.temp}°C</td>
                                 <td className="p-2">{d.humidity}%</td>
-                                <td className="p-2">{d.soil_moisture}</td>
-                                <td className="p-2">{d.ldr}</td>
+                                <td className="p-2">{d.soil_moisture}%</td>
+                                <td className="p-2">{d.ldr}%</td>
                             </tr>
                         ))
                     ) : (

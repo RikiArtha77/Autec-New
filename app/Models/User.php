@@ -18,7 +18,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role', // misal: 'petani' atau 'user'
+        'role_id',
     ];
 
     // Field yang disembunyikan di output JSON
@@ -38,14 +38,18 @@ class User extends Authenticatable
         return $this->hasMany(Device::class);
     }
 
-    // Helper buat cek role
-    public function isPetani()
+    public function petaniRequest()
     {
-        return $this->role === 'petani';
+        return $this->hasOne(PetaniRequest::class);
     }
 
-    public function isUser()
+    public function role()
     {
-        return $this->role === 'user';
+        return $this->belongsTo(Role::class);
+    }
+
+    public function petaniRequests()
+    {
+        return $this->hasMany(PetaniRequest::class);
     }
 }

@@ -3,13 +3,18 @@ import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import HomePage from "./HomePage";
 import DevicePage from "./DevicePage";
 import SensorData from "./SensorData";
-import axios from "axios";
 import LoginPage from "./LoginPage";
 import RegisterPage from "./RegisterPage";
+import LiveDataEditor from "./AdminPage/LiveDataEditor";
+import PermohonanPage from "./AdminPage/PermohonanPage";
+import UserListPage from "./AdminPage/UserListPage";
+import LiveDataDemoUser from "./LiveDataDemoUser";
+import RequestPetaniForm from "./RequestPetaniForm";
+import axios from "axios";
 
 const App = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [role, setRole] = useState(null); // 'user' atau 'petani'
+    const [role, setRole] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -18,13 +23,11 @@ const App = () => {
 
         axios
             .get("/api/user", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => {
                 setIsLoggedIn(true);
-                setRole(res.data.role);
+                setRole(res.data.role_id);
             })
             .catch(() => {
                 setIsLoggedIn(false);
@@ -34,15 +37,19 @@ const App = () => {
 
     const handleLogout = () => {
         axios
-            .post("/api/logout", {}, { withCredentials: true })
-            .then(() => {
-                localStorage.removeItem("token"); // Hapus token dari localStorage
-                setIsLoggedIn(false);
-                setRole(null);
-                navigate("/"); // Arahkan ke homepage
-            })
-            .catch(() => {
-                localStorage.removeItem("token"); // Tetap hapus token jika error
+            .post(
+                "/api/logout",
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem(
+                            "token"
+                        )}`,
+                    },
+                }
+            )
+            .finally(() => {
+                localStorage.removeItem("token");
                 setIsLoggedIn(false);
                 setRole(null);
                 navigate("/");
@@ -71,7 +78,8 @@ const App = () => {
                         Home
                     </NavLink>
 
-                    {isLoggedIn && role === "petani" && (
+                    {/* Petani Menu */}
+                    {isLoggedIn && role === 2 && (
                         <>
                             <NavLink
                                 to="/device"
@@ -96,19 +104,69 @@ const App = () => {
                         </>
                     )}
 
-                    {isLoggedIn && role === "user" && (
-                        <NavLink
-                            to="/device"
-                            className={({ isActive }) =>
-                                `hover:text-gray-300 ${
-                                    isActive ? "font-bold" : ""
-                                }`
-                            }
-                        >
-                            Device
-                        </NavLink>
+                    {/* Admin Menu */}
+                    {isLoggedIn && role === 3 && (
+                        <>
+                            <NavLink
+                                to="/admin/users"
+                                className={({ isActive }) =>
+                                    `hover:text-gray-300 ${
+                                        isActive ? "font-bold" : ""
+                                    }`
+                                }
+                            >
+                                Akun
+                            </NavLink>
+                            <NavLink
+                                to="/admin/permohonan"
+                                className={({ isActive }) =>
+                                    `hover:text-gray-300 ${
+                                        isActive ? "font-bold" : ""
+                                    }`
+                                }
+                            >
+                                Permohonan
+                            </NavLink>
+                            <NavLink
+                                to="/admin/live-data"
+                                className={({ isActive }) =>
+                                    `hover:text-gray-300 ${
+                                        isActive ? "font-bold" : ""
+                                    }`
+                                }
+                            >
+                                Live Data
+                            </NavLink>
+                        </>
                     )}
 
+                    {/* User Biasa */}
+                    {isLoggedIn && role === 1 && (
+                        <>
+                            <NavLink
+                                to="/user/live-data-demo"
+                                className={({ isActive }) =>
+                                    `hover:text-gray-300 ${
+                                        isActive ? "font-bold" : ""
+                                    }`
+                                }
+                            >
+                                Live Data Demo
+                            </NavLink>
+                            <NavLink
+                                to="/user/permohonan-petani"
+                                className={({ isActive }) =>
+                                    `hover:text-gray-300 ${
+                                        isActive ? "font-bold" : ""
+                                    }`
+                                }
+                            >
+                                Menjadi Petani
+                            </NavLink>
+                        </>
+                    )}
+
+                    {/* Login/Register */}
                     {!isLoggedIn && (
                         <>
                             <NavLink
@@ -145,7 +203,7 @@ const App = () => {
                 )}
             </nav>
 
-            {/* Main content */}
+            {/* Routes */}
             <main className="flex-grow mt-16 p-4">
                 <Routes>
                     <Route path="/" element={<HomePage />} />
@@ -159,10 +217,12 @@ const App = () => {
                         }
                     />
                     <Route path="/register" element={<RegisterPage />} />
+
+                    {/* Petani */}
                     <Route
                         path="/device"
                         element={
-                            isLoggedIn && role === "petani" ? (
+                            isLoggedIn && (role === 1 || role === 2) ? (
                                 <DevicePage />
                             ) : (
                                 <HomePage />
@@ -172,8 +232,62 @@ const App = () => {
                     <Route
                         path="/sensor"
                         element={
-                            isLoggedIn && role === "petani" ? (
+                            isLoggedIn && role === 2 ? (
                                 <SensorData />
+                            ) : (
+                                <HomePage />
+                            )
+                        }
+                    />
+
+                    {/* Admin */}
+                    <Route
+                        path="/admin/live-data"
+                        element={
+                            isLoggedIn && role === 3 ? (
+                                <LiveDataEditor />
+                            ) : (
+                                <HomePage />
+                            )
+                        }
+                    />
+                    <Route
+                        path="/admin/permohonan"
+                        element={
+                            isLoggedIn && role === 3 ? (
+                                <PermohonanPage />
+                            ) : (
+                                <HomePage />
+                            )
+                        }
+                    />
+                    <Route
+                        path="/admin/users"
+                        element={
+                            isLoggedIn && role === 3 ? (
+                                <UserListPage />
+                            ) : (
+                                <HomePage />
+                            )
+                        }
+                    />
+
+                    {/* User */}
+                    <Route
+                        path="/user/live-data-demo"
+                        element={
+                            isLoggedIn && role === 1 ? (
+                                <LiveDataDemoUser />
+                            ) : (
+                                <HomePage />
+                            )
+                        }
+                    />
+                    <Route
+                        path="/user/permohonan-petani"
+                        element={
+                            isLoggedIn && role === 1 ? (
+                                <RequestPetaniForm />
                             ) : (
                                 <HomePage />
                             )
@@ -181,6 +295,7 @@ const App = () => {
                     />
                 </Routes>
             </main>
+
             {/* Footer */}
             <footer className="bg-green-600 text-white text-center p-4 w-full">
                 <p>&copy; 2025 AgroTech. Semua Hak Dilindungi.</p>
